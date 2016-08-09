@@ -7,6 +7,7 @@
   <script src="https://d3js.org/d3-color.v1.min.js"></script>
   <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
   <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script src="https://drive.google.com/open?id=0B2m73IsqQ_nUMnRvcFdkam1CSnM"></script>
     <style>
       circle {
         fill: orange;
@@ -346,7 +347,7 @@
               }, 1000);
           }
 
-          d3.tsv('https://drive.google.com/open?id=0B2m73IsqQ_nUMnRvcFdkam1CSnM', color_states);
+          d3.tsv("flights_by_states.tsv", color_states);
         }
 
         d3.json("states_titlecase.json", get_states_abbr);
