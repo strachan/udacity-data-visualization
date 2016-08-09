@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="http://d3js.org/topojson.v1.min.js"></script>
+  <script src="https://d3js.org/d3-color.v1.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <style>
+      circle {
+        fill: orange;
+        stroke: black;
+        stroke-width: 0.7;
+        opacity: 0.7;
+      }
+
+      h2 {
+        text-align: center;
+        color: black;
+      }
+
+      div.time_buttons {
+        position: fixed;
+        top: 5px;
+        left: 50px;
+      }
+
+      div.time_buttons div {
+        background-color: rgb(251, 201, 127);
+        padding: 3px;
+        margin: 7px;
+        text-align: center;
+      }
+
+      div.years_buttons {
+        position: fixed;
+        top: 5px;
+        left: 150px;
+      }
+
+      div.years_buttons div {
+        background-color: rgb(251, 201, 127);
+        padding: 3px;
+        margin: 7px;
+      }
+
+      div.months_buttons {
+        position: fixed;
+        top: 5px;
+        left: 200px;
+      }
+
+      div.months_buttons div {
+        background-color: rgb(251, 201, 127);
+        padding: 3px;
+        margin: 7px;
+      }
+
+    </style>
+    <script type="text/javascript">
+      function draw(states_data) {
+        "use strict";
+        var margin = 75,
+            width = 1400 - margin,
+            height = 600 - margin;
+
+        d3.select("body")
+          .append("h2")
+          .text("US Flights ");
+
+        var svg = d3.select("body")
+            .append("svg")
+            .attr("width", width + margin)
+            .attr("height", height + margin)
+            .append('g')
+            .attr('class', 'map');
+
+        var years = [];
+
+        for(var i = 1990; i < 2010; i++) {
+            years.push(i);
+        }
+
+        var months = []
+
+        var months_by_id = {1: "January", 2: "February", 3: "March",
+                            4: "April", 5: "May", 6: "June", 7: "July",
+                            8: "August", 9: "September", 10: "October",
+                            11: "November", 12: "December"};
+
+        for (var i = 1; i <= 12; i++) {
+          months.push(i);
+        }
+
+        var filter_time = ['By years', 'By months'];
+
+
+        function get_states_abbr(state_names) {
+
+          for (var i = 0; i < states_data.features.length; i++) {
+
+            for (var j = 0; j < state_names.length; j++) {
+
+              if (states_data.features[i].properties.name === state_names[j].name) {
+
+                states_data.features[i].properties.abbrv = state_names[j].abbreviation
+              }
+            }
+          }
+
+          // D3 Projection
+          var projection = d3.geo.albersUsa()
+        		.translate([width/2, height/2-30])    // translate to center of screen
+        		.scale([900]);          // scale things down so see entire US
+
+          // Define path generator
+          var path = d3.geo.path()               // path generator that will convert GeoJSON to SVG paths
+        		.projection(projection);  // tell path generator to use albersUsa projections
+
+          svg.selectAll("path")
+  					.data(states_data.features)
+  					.enter()
+  					.append("path")
+  					.attr("d", path)
+            .style('fill', 'lightBlue')
+            .style('stroke', 'black')
+            .style('stroke-width', 0.5);
+
+
+
+            function color_states(flights_data) {
+
+                function agg_flights(leaves) {
+
+                    var total_flights = d3.sum(leaves, function(d) {
+                        return d['Flights'];
+                    });
+
+                    return {
+                      'flights' : total_flights,
+                    };
+                }
+
+                function build_input(route) {
+
+                  var nested = {}
+                  nested['years'] = d3.nest()
+                                         .key(function(d) { return d[route]; })
+                                         .key(function(d) { return d['Year']; })
+                                         .rollup(agg_flights)
+                                         .map(flights_data);
+                  nested['max_by_years'] = d3.max(d3.values(nested['years']), function(d) {
+                                                        return d3.max(d3.values(d), function(f) {
+                                                          return f['flights'];
+                                                        });
+                                                      });
+
+                  nested['months'] = d3.nest()
+                                              .key(function(d) { return d[route]; })
+                                              .key(function(d) { return d['Year']; })
+                                              .key(function(d) { return d['Month']; })
+                                              .rollup(agg_flights)
+                                              .map(flights_data);
+                  nested['max_by_months'] = d3.max(d3.values(nested['months']), function(d) {
+                                                          return d3.max(d3.values(d), function(f) {
+                                                            return d3.max(d3.values(f), function(g) {
+                                                                return g['flights'];
+                                                            });
+                                                          });
+                                                        });
+                  return nested;
+                }
+
+                var nested_origin = build_input("Origin");
+                var nested_destination = build_input("Destination");
+
+              function update(year) {
+
+                  function select_route(d) {
+                    if (d === "Origin") {
+                      return nested_origin;
+                    }
+                    else {
+                      return nested_destination;
+                    }
+                  }
+                  var route_params = select_route(selectedRoute);
+
+                  if (selectedTime === "years") {
+                    d3.select("h2")
+                      .text("US Flights in " + year);
+                  }
+                  else {
+                    d3.select("h2")
+                      .text("US Flights in " + months_by_id[selectedMonth] + " " + year);
+                  }
+
+                  function update_states(d) {
+
+                    var state = route_params[selectedTime][d.properties.abbrv]
+                    if (state !== undefined) {
+                      var state_year = state[year];
+                      if(state_year !== undefined) {
+                        if (selectedTime === "years") {
+                          return d3.interpolateGreens(state_year['flights']/route_params["max_by_" + selectedTime]); // t entre 0 e 1
+                        }
+                        else {
+                          var state_year_month = state_year[selectedMonth];
+                          if (state_year_month !== undefined) {
+                            return d3.interpolateGreens(state_year_month['flights']/route_params["max_by_" + selectedTime]);
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  svg.selectAll('path')
+                     .transition()
+                     .duration(500)
+                     .style('fill', update_states);
+
+              }
+
+              var year_idx = 0;
+              var selectedMonth = 1;
+              var selectedRoute = "Origin"
+              var selectedYear = 2009;
+              var selectedTime = "years";
+
+              var year_interval = setInterval(function() {
+                update(years[year_idx]);
+
+                year_idx++;
+
+                if(year_idx >= years.length) {
+
+                    clearInterval(year_interval);
+
+                    var buttons_time = d3.select("body")
+                            .append("div")
+                            .attr("class", "time_buttons")
+                            .selectAll("div")
+                            .data(filter_time)
+                            .enter()
+                            .append("div")
+                            .text(function(d) {
+                                return d;
+                            });
+
+                    var buttons_year = d3.select("body")
+                            .append("div")
+                            .attr("class", "years_buttons")
+                            .selectAll("div")
+                            .data(years)
+                            .enter()
+                            .append("div")
+                            .text(function(d) {
+                                return d;
+                            });
+
+                    var buttons_month = d3.select("body")
+                            .append("div")
+                            .attr("class", "months_buttons")
+                            .selectAll("div")
+                            .data(months)
+                            .enter()
+                            .append("div")
+                            .text(function(g) {
+                                return g;
+                            });
+
+                    d3.select(".months_buttons")
+                      .selectAll("div")
+                      .style("opacity", 0);
+
+                    buttons_time.on("click", function(d) {
+                        d3.select(".time_buttons")
+                          .selectAll("div")
+                          .transition()
+                          .duration(500)
+                          .style("color", "black")
+                          .style("background", "rgb(251, 201, 127)");
+
+                        d3.select(this)
+                          .transition()
+                          .duration(500)
+                          .style("background", "lightBlue")
+                          .style("color", "white");
+
+
+                        if (d === "By months") {
+
+                          selectedTime = "months";
+
+                          d3.select(".months_buttons")
+                            .selectAll("div")
+                            .style("opacity", 1);
+                        }
+                        else {
+
+                          selectedTime = "years";
+
+                          d3.select(".months_buttons")
+                            .selectAll("div")
+                            .style("opacity", 0);
+                        }
+                    });
+
+                    buttons_year.on("click", function(d) {
+                        d3.select(".years_buttons")
+                          .selectAll("div")
+                          .transition()
+                          .duration(500)
+                          .style("color", "black")
+                          .style("background", "rgb(251, 201, 127)");
+
+                        d3.select(this)
+                          .transition()
+                          .duration(500)
+                          .style("background", "lightBlue")
+                          .style("color", "white");
+
+                        selectedYear = d;
+                        update(d);
+                    });
+
+                    buttons_month.on("click", function(d) {
+                        d3.select(".months_buttons")
+                          .selectAll("div")
+                          .transition()
+                          .duration(500)
+                          .style("color", "black")
+                          .style("background", "rgb(251, 201, 127)");
+
+                        d3.select(this)
+                          .transition()
+                          .duration(500)
+                          .style("background", "lightBlue")
+                          .style("color", "white");
+
+                        selectedMonth = d;
+                        update(selectedYear);
+                    });
+                }
+              }, 1000);
+          }
+
+          d3.tsv("https://drive.google.com/open?id=0B2m73IsqQ_nUMnRvcFdkam1CSnM", color_states);
+        }
+
+        d3.json("states_titlecase.json", get_states_abbr);
+
+
+
+    };
+    </script>
+  </head>
+<body>
+  <script type="text/javascript">
+  /*
+    Use D3 to load the GeoJSON file
+    */
+
+d3.json("us_states.json", draw);
+  </script>
+</body>
+</html>
