@@ -5,8 +5,10 @@
   <script src="http://d3js.org/d3.v3.min.js"></script>
   <script src="http://d3js.org/topojson.v1.min.js"></script>
   <script src="https://d3js.org/d3-color.v1.min.js"></script>
+  <script type="text/javascript" src="http://d3js.org/colorbrewer.v1.min.js"></script>
   <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
   <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
     <style>
       circle {
         fill: orange;
@@ -20,23 +22,15 @@
         color: black;
       }
 
-      div.time_buttons {
-        position: fixed;
-        top: 5px;
-        left: 50px;
-      }
-
-      div.time_buttons div {
-        background-color: rgb(251, 201, 127);
-        padding: 3px;
-        margin: 7px;
+      h3 {
         text-align: center;
+        color: black;
       }
 
       div.years_buttons {
         position: fixed;
-        top: 5px;
-        left: 150px;
+        top: 130px;
+        left: 50px;
       }
 
       div.years_buttons div {
@@ -45,16 +39,65 @@
         margin: 7px;
       }
 
-      div.months_buttons {
-        position: fixed;
-        top: 5px;
-        left: 200px;
+      .colorbar .axis line{
+        fill: none;
+        stroke: black;
+        shape-rendering: crispEdges;
       }
 
-      div.months_buttons div {
-        background-color: rgb(251, 201, 127);
-        padding: 3px;
-        margin: 7px;
+      .colorbar .axis .domain{
+        fill: none;
+        stroke: black;
+        shape-rendering: crispEdges;
+      }
+
+      .legend {
+        fill: #777;
+        font-size: 12px;
+        margin: 10px;
+        stroke-width: 0px;
+      }
+
+      .active {
+        fill: orangered;
+        opacity: 0.8;
+      }
+
+      .d3-tip {
+        line-height: 1;
+        font-weight: bold;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        border-radius: 2px;
+      }
+
+      /* Creates a small triangle extender for the tooltip */
+      .d3-tip:after {
+        box-sizing: border-box;
+        display: inline;
+        font-size: 10px;
+        width: 100%;
+        line-height: 1;
+        color: rgba(0, 0, 0, 0.8);
+        content: "\25BC";
+        position: absolute;
+        text-align: center;
+      }
+
+      /* Style northward tooltips differently */
+      .d3-tip.n:after {
+        margin: -1px 0 0 0;
+        top: 100%;
+        left: 0;
+      }
+
+      .bar {
+        fill: lightgreen;
+      }
+
+      .container {
+        float: left;
       }
 
     </style>
@@ -62,19 +105,61 @@
       function draw(states_data) {
         "use strict";
         var margin = 75,
-            width = 1400 - margin,
-            height = 600 - margin;
+            width = 800 - margin,
+            height = 600 - margin,
+            marginbar = 75,
+            widthbar = 400,
+            heightbar = 400,
+            legendw = 10,
+            legendh = 20;
 
-        d3.select("body")
-          .append("h2")
-          .text("US Flights ");
-
-        var svg = d3.select("body")
+        var map = d3.select("#map")
             .append("svg")
             .attr("width", width + margin)
             .attr("height", height + margin)
             .append('g')
-            .attr('class', 'map');
+            .attr('class', 'states');
+
+        var scale = d3.scale.linear()
+                      .domain([0, 1])
+                      .interpolate(d3.interpolateGreens);
+
+        var colors = colorbrewer.Greens[9];
+
+        var legend = map.append("g");
+
+        var legend2 = legend.selectAll("rect")
+                            .data(colors)
+                            .enter().append("rect")
+                            .attr("width", legendw)
+                            .attr("height", legendh)
+                            .attr("fill", function(d) {
+                              return d;
+                            })
+                            .attr("x", 0)
+                            .attr("y", function(d, i) {
+                                return (i + 1) * legendh;
+                            });
+
+        legend.append("text")
+            .attr("class", "legend max");
+
+        legend.append("text")
+            .attr("class", "legend min");
+
+        var bar = d3.select("#bar")
+                    .append("svg")
+                    .attr("width", widthbar)
+                    .attr("height", heightbar)
+                    .append("g")
+                    .attr("transform", "translate(" + marginbar + "," + marginbar + ")");
+
+        bar.append("g")
+           .attr("class", "x axis")
+           .attr("transform", "translate(0," + (heightbar - 2 * marginbar) + ")");
+
+        bar.append("g")
+           .attr("class", "y axis");
 
         var years = [];
 
@@ -93,88 +178,166 @@
           months.push(i);
         }
 
-        var filter_time = ['By years', 'By months'];
-
-
         function get_states_abbr(state_names) {
 
+          // Create a table with state code as key and state id as value
+          var codeById = d3.map();
+          var nameById = d3.map();
+
           for (var i = 0; i < states_data.features.length; i++) {
-
             for (var j = 0; j < state_names.length; j++) {
-
               if (states_data.features[i].properties.name === state_names[j].name) {
-
-                states_data.features[i].properties.abbrv = state_names[j].abbreviation
+                codeById.set(+states_data.features[i].id, state_names[j].abbreviation);
+                nameById.set(+states_data.features[i].id, states_data.features[i].properties.name);
               }
             }
           }
 
+          var nested_origin
+          var selectedYear
+
+          function update_bar(data) {
+
+            var x = d3.scale.ordinal()
+                            .rangeRoundBands([0, widthbar - 2 * marginbar], .1);
+
+            var y = d3.scale.linear()
+                            .range([heightbar - 2 * marginbar, 0]);
+
+            x.domain(months);
+
+            var domains = d3.values(nested_origin["months"][data][selectedYear]);
+            y.domain([0, d3.max(domains)]);
+
+            var bar2 = bar.selectAll(".bar")
+                          .data(domains);
+
+            bar2.exit().remove();
+            bar2.enter().append("rect");
+            bar2.attr("class", "bar")
+                .attr("id", function(d, i) {
+                    return i+1;
+                })
+                .attr("x", function(d, i) {
+                    return x(i+1);
+                })
+                .attr("width", x.rangeBand())
+                .transition()
+                .duration(500)
+                .attr("y", function(d) {
+                    return y(d);
+                })
+                .attr("distance", function(d) {
+                  return d
+                })
+                .attr("height", function(d) {
+                    return heightbar - 2 * marginbar - y(d);
+                });
+
+            var xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom");
+
+            var yAxis = d3.svg.axis()
+                .scale(y)
+                .tickFormat(d3.format(".2e"))
+                .orient("left")
+
+            d3.select('.x.axis')
+                .transition()
+                .duration(500)
+                .call(xAxis);
+
+            d3.select('.y.axis')
+                .transition()
+                .duration(500)
+                  .call(yAxis);
+
+            d3.select('.y.axis')
+                .append("text")
+                .attr("id", "texty")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 2)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end")
+                .text("Flights' Distance");
+          }
+
+          var btip = d3.tip()
+                       .attr('class', 'd3-tip')
+                       .offset([0, 0])
+                       .html(function(d) {
+                            var id;
+                            if (+d.id) { id = +d.id; } else { id = +d.key }
+                            return "<strong>" + nameById.get(id) + "</strong></br>" + "Total Distance: " + d3.format(",")(nested_origin["years"][codeById.get(id)][selectedYear]) + "</br>";
+                      });
+
+          map.call(btip);
+
           // D3 Projection
           var projection = d3.geo.albersUsa()
-        		.translate([width/2, height/2-30])    // translate to center of screen
+        		.translate([width/2 + 100, height/2])    // translate to center of screen
         		.scale([900]);          // scale things down so see entire US
 
           // Define path generator
           var path = d3.geo.path()               // path generator that will convert GeoJSON to SVG paths
         		.projection(projection);  // tell path generator to use albersUsa projections
 
-          svg.selectAll("path")
-  					.data(states_data.features)
-  					.enter()
-  					.append("path")
-  					.attr("d", path)
-            .style('fill', 'lightBlue')
-            .style('stroke', 'black')
-            .style('stroke-width', 0.5);
+          var map2 = map.selectAll("path")
+  					.data(states_data.features);
 
+  				map2.enter()
+  					  .append("path");
 
+          map2.attr("class", "state")
+              .attr("id", function(d) {
+                return codeById.get(+d.id);
+              })
+              .style('fill', 'lightBlue')
+              .style('stroke', 'black')
+              .style('stroke-width', 0.5);
+
+          map2.attr("d", path);
 
             function color_states(flights_data) {
 
-                var nested_origin = flights_data['Origin'];
-                var nested_destination = flights_data['Destination'];
-debugger;
-              function update(year) {
-debugger;
-                  function select_route(d) {
-                    if (d === "Origin") {
-                      return nested_origin;
-                    }
-                    else {
-                      return nested_destination;
-                    }
-                  }
-                  var route_params = select_route(selectedRoute);
+              nested_origin = flights_data['Origin'];
 
-                  if (selectedTime === "years") {
-                    d3.select("h2")
-                      .text("US Flight's distance per State in " + year);
+              d3.select(".legend.max")
+                .attr("x", 0)
+                .attr("y", 10)
+                .text(">" + "0");
+
+              d3.select(".legend.min")
+                  .attr("x", 0)
+                  .attr("y", legendh * (colors.length + 2))
+                  .text("<" + d3.format(".2e")(nested_origin["max_by_years"]));
+
+              function update(year) {
+
+                  function total_distance_year(d) {
+                    return d3.sum(d3.values(d), function(f) {
+                      return f[selectedYear]
+                    });
                   }
-                  else {
-                    d3.select("h2")
-                      .text("US Flight's distance per State in " + months_by_id[selectedMonth] + " " + year);
-                  }
+
+                  d3.select("h2")
+                    .text("US Flight's distance per State in " + year);
+                  d3.select("h3")
+                    .text("Total Distance: " + d3.format(",")(total_distance_year(nested_origin["years"])))
 
                   function update_states(d) {
-debugger;
-                    var state = route_params[selectedTime][d.properties.abbrv]
+
+                    var state = nested_origin["years"][codeById.get(+d.id)]
                     if (state !== undefined) {
                       var state_year = state[year];
                       if(state_year !== undefined) {
-                        if (selectedTime === "years") {
-                          return d3.interpolateGreens(state_year/route_params["max_by_" + selectedTime]); // t entre 0 e 1
-                        }
-                        else {
-                          var state_year_month = state_year[selectedMonth];
-                          if (state_year_month !== undefined) {
-                            return d3.interpolateGreens(state_year_month/route_params["max_by_" + selectedTime]);
-                          }
-                        }
+                          return d3.interpolateGreens(state_year/nested_origin["max_by_years"]); // t entre 0 e 1
                       }
                     }
                   }
 
-                  svg.selectAll('path')
+                  map.selectAll("path")
                      .transition()
                      .duration(500)
                      .style('fill', update_states);
@@ -182,13 +345,12 @@ debugger;
               }
 
               var year_idx = 0;
-              var selectedMonth = 1;
-              var selectedRoute = "Origin"
-              var selectedYear = 2009;
-              var selectedTime = "years";
+              selectedYear = 2009;
 
               var year_interval = setInterval(function() {
-                update(years[year_idx]);
+
+                selectedYear = years[year_idx];
+                update(selectedYear);
 
                 year_idx++;
 
@@ -196,16 +358,22 @@ debugger;
 
                     clearInterval(year_interval);
 
-                    var buttons_time = d3.select("body")
-                            .append("div")
-                            .attr("class", "time_buttons")
-                            .selectAll("div")
-                            .data(filter_time)
-                            .enter()
-                            .append("div")
-                            .text(function(d) {
-                                return d;
-                            });
+                    d3.selectAll("path")
+                      .on("mouseover", function(d) {
+                        btip.show(d, d3.select("rect#" + codeById.get(+d.id)).node());
+                        d3.selectAll("#" + codeById.get(+d.id))
+                          .classed("active", true);
+                        update_bar(codeById.get(+d.id))
+                        d3.selectAll(".bar")
+                          .style("opacity", 1);
+                      })
+                      .on("mouseout", function(d) {
+                        btip.hide(d)
+                        d3.selectAll("#" + codeById.get(+d.id))
+                          .classed("active", false);
+                        d3.selectAll(".bar")
+                          .style("opacity", 0);
+                      })
 
                     var buttons_year = d3.select("body")
                             .append("div")
@@ -217,54 +385,6 @@ debugger;
                             .text(function(d) {
                                 return d;
                             });
-
-                    var buttons_month = d3.select("body")
-                            .append("div")
-                            .attr("class", "months_buttons")
-                            .selectAll("div")
-                            .data(months)
-                            .enter()
-                            .append("div")
-                            .text(function(g) {
-                                return g;
-                            });
-
-                    d3.select(".months_buttons")
-                      .selectAll("div")
-                      .style("opacity", 0);
-
-                    buttons_time.on("click", function(d) {
-                        d3.select(".time_buttons")
-                          .selectAll("div")
-                          .transition()
-                          .duration(500)
-                          .style("color", "black")
-                          .style("background", "rgb(251, 201, 127)");
-
-                        d3.select(this)
-                          .transition()
-                          .duration(500)
-                          .style("background", "lightBlue")
-                          .style("color", "white");
-
-
-                        if (d === "By months") {
-
-                          selectedTime = "months";
-
-                          d3.select(".months_buttons")
-                            .selectAll("div")
-                            .style("opacity", 1);
-                        }
-                        else {
-
-                          selectedTime = "years";
-
-                          d3.select(".months_buttons")
-                            .selectAll("div")
-                            .style("opacity", 0);
-                        }
-                    });
 
                     buttons_year.on("click", function(d) {
                         d3.select(".years_buttons")
@@ -283,24 +403,6 @@ debugger;
                         selectedYear = d;
                         update(d);
                     });
-
-                    buttons_month.on("click", function(d) {
-                        d3.select(".months_buttons")
-                          .selectAll("div")
-                          .transition()
-                          .duration(500)
-                          .style("color", "black")
-                          .style("background", "rgb(251, 201, 127)");
-
-                        d3.select(this)
-                          .transition()
-                          .duration(500)
-                          .style("background", "lightBlue")
-                          .style("color", "white");
-
-                        selectedMonth = d;
-                        update(selectedYear);
-                    });
                 }
               }, 1000);
           }
@@ -316,12 +418,13 @@ debugger;
     </script>
   </head>
 <body>
+  <h1>LALA</h1> adsadasdasda <p/>
+  <h2>US Flights</h2>
+  <h3></h3>
+  <div class="container" id="map"></div>
+  <div class="container" id="bar"></div>
   <script type="text/javascript">
-  /*
-    Use D3 to load the GeoJSON file
-    */
-
-d3.json("us_states.json", draw);
+    d3.json("us_states.json", draw);
   </script>
 </body>
 </html>
