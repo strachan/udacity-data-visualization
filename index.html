@@ -18,22 +18,22 @@
       }
 
       h2 {
-        text-align: center;
+        text-align: left;
         color: black;
       }
 
       h3 {
-        text-align: center;
+        text-align: left;
         color: black;
       }
 
       div.years_buttons {
-        position: fixed;
-        top: 130px;
+        top: 200px;
         left: 50px;
       }
 
       div.years_buttons div {
+        float: left;
         background-color: rgb(251, 201, 127);
         padding: 3px;
         margin: 7px;
@@ -72,7 +72,6 @@
         border-radius: 2px;
       }
 
-      /* Creates a small triangle extender for the tooltip */
       .d3-tip:after {
         box-sizing: border-box;
         display: inline;
@@ -85,7 +84,6 @@
         text-align: center;
       }
 
-      /* Style northward tooltips differently */
       .d3-tip.n:after {
         margin: -1px 0 0 0;
         top: 100%;
@@ -136,9 +134,9 @@
                             .attr("fill", function(d) {
                               return d;
                             })
-                            .attr("x", 0)
+                            .attr("x", 50)
                             .attr("y", function(d, i) {
-                                return (i + 1) * legendh;
+                                return (i + 9) * legendh;
                             });
 
         legend.append("text")
@@ -152,11 +150,13 @@
                     .attr("width", widthbar)
                     .attr("height", heightbar)
                     .append("g")
-                    .attr("transform", "translate(" + marginbar + "," + marginbar + ")");
+                    .attr("transform", "translate(" + marginbar + "," +
+                                                      marginbar + ")");
 
         bar.append("g")
            .attr("class", "x axis")
-           .attr("transform", "translate(0," + (heightbar - 2 * marginbar) + ")");
+           .attr("transform", "translate(0," + (heightbar - 2 * marginbar)
+                                             + ")");
 
         bar.append("g")
            .attr("class", "y axis");
@@ -180,15 +180,18 @@
 
         function get_states_abbr(state_names) {
 
-          // Create a table with state code as key and state id as value
+          // Create a table with state code as key and state id as value.
           var codeById = d3.map();
+          // Create a table with state id as key and state code as value.
           var nameById = d3.map();
 
           for (var i = 0; i < states_data.features.length; i++) {
             for (var j = 0; j < state_names.length; j++) {
               if (states_data.features[i].properties.name === state_names[j].name) {
-                codeById.set(+states_data.features[i].id, state_names[j].abbreviation);
-                nameById.set(+states_data.features[i].id, states_data.features[i].properties.name);
+                codeById.set(+states_data.features[i].id,
+                              state_names[j].abbreviation);
+                nameById.set(+states_data.features[i].id,
+                              states_data.features[i].properties.name);
               }
             }
           }
@@ -269,18 +272,22 @@
                        .html(function(d) {
                             var id;
                             if (+d.id) { id = +d.id; } else { id = +d.key }
-                            return "<strong>" + nameById.get(id) + "</strong></br>" + "Total Distance: " + d3.format(",")(nested_origin["years"][codeById.get(id)][selectedYear]) + "</br>";
-                      });
+                            return "<strong>" + nameById.get(id) +
+                            "</strong></br>" + "Total Distance: " +
+                            d3.format(",")
+                            (nested_origin["years"][codeById.get(id)][selectedYear])
+                            + "</br>";
+                       });
 
           map.call(btip);
 
           // D3 Projection
           var projection = d3.geo.albersUsa()
-        		.translate([width/2 + 100, height/2])    // translate to center of screen
-        		.scale([900]);          // scale things down so see entire US
+        		.translate([width/2 + 100, height/2]) // translate to center of screen
+        		.scale([900]);   // scale things down so see entire US
 
           // Define path generator
-          var path = d3.geo.path()               // path generator that will convert GeoJSON to SVG paths
+          var path = d3.geo.path() // path generator that will convert GeoJSON to SVG paths
         		.projection(projection);  // tell path generator to use albersUsa projections
 
           var map2 = map.selectAll("path")
@@ -304,13 +311,13 @@
               nested_origin = flights_data['Origin'];
 
               d3.select(".legend.max")
-                .attr("x", 0)
-                .attr("y", 10)
+                .attr("x", 50)
+                .attr("y", 170)
                 .text(">" + "0");
 
               d3.select(".legend.min")
-                  .attr("x", 0)
-                  .attr("y", legendh * (colors.length + 2))
+                  .attr("x", 50)
+                  .attr("y", legendh * (colors.length + 10))
                   .text("<" + d3.format(".2e")(nested_origin["max_by_years"]));
 
               function update(year) {
@@ -322,9 +329,10 @@
                   }
 
                   d3.select("h2")
-                    .text("US Flight's distance per State in " + year);
+                    .text("US total flights distance per State in " + year);
                   d3.select("h3")
-                    .text("Total Distance: " + d3.format(",")(total_distance_year(nested_origin["years"])))
+                    .text("Total Distance: " +
+                    d3.format(",")(total_distance_year(nested_origin["years"])))
 
                   function update_states(d) {
 
@@ -332,7 +340,8 @@
                     if (state !== undefined) {
                       var state_year = state[year];
                       if(state_year !== undefined) {
-                          return d3.interpolateGreens(state_year/nested_origin["max_by_years"]); // t entre 0 e 1
+                          return d3.interpolateGreens(state_year /
+                                            nested_origin["max_by_years"]);
                       }
                     }
                   }
@@ -341,7 +350,6 @@
                      .transition()
                      .duration(500)
                      .style('fill', update_states);
-
               }
 
               var year_idx = 0;
@@ -360,7 +368,8 @@
 
                     d3.selectAll("path")
                       .on("mouseover", function(d) {
-                        btip.show(d, d3.select("rect#" + codeById.get(+d.id)).node());
+                        btip.show(d,
+                          d3.select("rect#" + codeById.get(+d.id)).node());
                         d3.selectAll("#" + codeById.get(+d.id))
                           .classed("active", true);
                         update_bar(codeById.get(+d.id))
@@ -375,9 +384,7 @@
                           .style("opacity", 0);
                       })
 
-                    var buttons_year = d3.select("body")
-                            .append("div")
-                            .attr("class", "years_buttons")
+                    var buttons_year = d3.select("div.years_buttons")
                             .selectAll("div")
                             .data(years)
                             .enter()
@@ -411,16 +418,25 @@
         }
 
         d3.json("states_titlecase.json", get_states_abbr);
-
-
-
     };
     </script>
   </head>
 <body>
-  <h1>LALA</h1> adsadasdasda <p/>
+  <h1>United States Origin Flights</h1>
+  <p>This visualization shows the total distance flown by all airplanes
+    departing from each state. We can see that the darker states are the ones
+    that have airline hubs.<br>
+  California (Los Angeles and San Francisco) and Texas (Dallas and Houston)
+  stand out because each have two major airports.<br>
+  We can also realize the growth of the total distance flown in the country,
+  except in 2001, 2002, 2008 e 2009.
+  The first two years is because 9/11 and the last two is during
+  the Great Recession.<br>
+  Another insight is that most of the states have its peak during the year
+  in July, August probably because of the vacation's period.</p>
   <h2>US Flights</h2>
   <h3></h3>
+  <div class="years_buttons"></div>
   <div class="container" id="map"></div>
   <div class="container" id="bar"></div>
   <script type="text/javascript">
