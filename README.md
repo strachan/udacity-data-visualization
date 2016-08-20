@@ -1,7 +1,5 @@
 # Summary
 
-https://gist.github.com/strachan/b5ed697810c14b678e0202a81ccabec2
-
 This visualization shows the total distance flown by all airplanes departing from each state. We can see that the darker states are the ones that have airline hubs and that California (Los Angeles and San Francisco) and Texas (Dallas and Houston) stand out because each have two major airports.
 
 We can also realize the growth of the total distance flown in the country, except in 2001, 2002, 2008 e 2009. Another insight is that most of the states have its peak during the year in July, August probably because of the vacation's period.
