@@ -1,5 +1,7 @@
 # Summary
 
+https://gist.github.com/strachan/b5ed697810c14b678e0202a81ccabec2
+
 This visualization shows the total distance flown by all airplanes departing from each state. We can see that the darker states are the ones that have airline hubs and that California (Los Angeles and San Francisco) and Texas (Dallas and Houston) stand out because each have two major airports.
 
 We can also realize the growth of the total distance flown in the country, except in 2001, 2002, 2008 e 2009. Another insight is that most of the states have its peak during the year in July, August probably because of the vacation's period.
@@ -11,13 +13,13 @@ I downloaded the [data](http://academictorrents.com/details/a2ccf94bbb4af222bf8e
 
 ### Initial Steps
 
-In this project I would like to visualize the US states' fligths behavior along the years. To better ilustrate the objective, a map structure was designed filling the states with a sequential single hue green coloring. The color would represent the total distance flown by all airplanes that year. 
+In this project I would like to visualize the US states' flights behavior along the years. To better illustrate the objective, a map structure was designed filling the states with a sequential single hue green coloring. The color would represent the total distance flown by all airplanes that year. The  map / choropleth was chosen to show the total distance of flights geographically for each state so that the user can visualize clearly where the concentration is in the country. Sequential color palette with a single hue was picked because data range from relative low values to high values. Colormaps with large hue shifts tend to introduce discontinuities that don’t exist in the data.   
 
-An animation was developed going through each year and showing the differences between states and past years. After the animation some buttons were displayed for an interactive phase. Two buttons 'By years' and 'By months' would switch the visualization flights distance. The first button would make the visualization shows the total distance flown by all airplanes from that state in the selected year. The second button would make the visualization shows the total distance from that state in the selected month and year. When the 'By months' was selected a third column with buttons was displayed with the respective months of the year to be selected.
+An animation was developed going through each year to show the differences between states and past years. After the animation some buttons were displayed for an interactive phase for the user to explore meticulously. Two buttons 'By years' and 'By months' would switch the visualization flights distance. The first button would make the visualization shows the total distance flown by all airplanes from that state in the selected year. The second button would make the visualization shows the total distance from that state in the selected month and year. When the 'By months' was selected a third column with buttons was displayed with the respective months of the year to be selected.
 
 ### Post-feedback
 
-With the feedbacks I reorganize the vizualisation. I wrote some paragraphs to explain the mapping and the major insights. The 'By months' button was removed and a new bar graph was plotted to show the flights distance by month. A legend for the colors was added to explain what the values of the colors mean. The total US flights distance was included in the visualization. The last improvement was the tooltip when the mouse was over a state displaying the name and the total flights distance of that state.
+With the feedbacks I reorganize the visualization. I wrote some paragraphs to explain the mapping and the major insights. The 'By months' button was removed and a new bar graph was plotted to show the flights distance by month. A legend for the colors was added to explain what the values of the colors mean. The total US flights distance was included in the visualization. The last improvement was the tooltip when the mouse was over a state displaying the name and the total flights distance of that state.
 
 # Feedbacks
 
